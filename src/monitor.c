@@ -8,12 +8,29 @@
 #include <time.h>
 #include <sys/wait.h>
 #include "lib.h"
+#include <stdlib.h>
 
 void cut(char new[], char string[], int size){
     for (int l = 0;l<size;l++){
         new[l] = string[l];  
         new[l+1] = '\0';                  
     }
+}
+
+//criar um fifo com o pid do cliente e comunicar de volta
+int bounce(program tracer){
+    char fifo[] = "fifo_";
+    char pid[4096];
+    char buffer[4096];
+    sprintf(pid,"%d",tracer.pid);
+    strcat(fifo,pid);
+
+    int fd = open(fifo,O_WRONLY);
+
+    write(fd,"status bounce",strlen("status bounce"));
+    close(fd);
+    
+    return 0;
 }
 
 int main(int argc,char * argv[]){
@@ -43,31 +60,26 @@ int main(int argc,char * argv[]){
                     //pid
                     char pid[j];
                     cut(pid,temp,j);
-                    //tracer.pid=;
-                    printf("%s\n", pid);
+                    tracer.pid = atoi(pid);
                 } if (k ==2){
                     //run
                     char run[j];
                     cut(run,temp,j);
-                    //tracer.running=;
-                    printf("%s\n", run);
+                    tracer.running = atoi(run);
                 } if (k== 3){
                     //status
                     char stat[j];
                     cut(stat,temp,j);
-                    //tracer.status=;
-                    printf("%s\n", stat);
+                    tracer.status = atoi(stat);
                 } if (k==4){
                     //time
                     char time[j];
                     cut(time,temp,j);
-                    //tracer.time=;
-                    printf("%s\n", time);
+                    tracer.time = atoi(time);
                 } if (k == 5){
                     char args[j];
                     cut(args,temp,j);
                     tracer.program=args;
-                    printf("%s\n", tracer.program);
                 }
                 k++;
                 for(int l =0;l<j;l++){
@@ -80,6 +92,11 @@ int main(int argc,char * argv[]){
             }
         }
         // if status = 0, guardar status else dar status
+        if (tracer.status == 0){
+
+        } else if (tracer.status == 1){
+            int rbounce = bounce(tracer);
+        }
     }
     printf("after while");     
     close(fd);
