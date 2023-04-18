@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include "lib.h"
+#include <sys/wait.h>
 
 int bounce(){
     char fifo[] = "fifo_";
@@ -28,6 +29,42 @@ int bounce(){
     unlink(fifo);
     return 0;
 }
+
+
+int exe(char comando[]){
+        int i = 0;
+        char *string;
+        char *exec_args[20];
+        string = strsep(&comando, " ");
+        while(string!=NULL){
+            exec_args[i]=string;
+            string=strsep(&comando," ");
+            i++;
+        }
+
+        exec_args[i]=NULL;
+
+        int exect_ret;
+        int status;
+
+        if(fork()==0){
+            exect_ret = execvp(exec_args[0],exec_args);
+
+            perror("reached return");
+
+            _exit(exect_ret);
+        }
+
+        pid_t pid = wait(&status);
+        if(WIFEXITED(status)){
+            return WEXITSTATUS(status);
+        }else{
+            printf("filho %d deu rip\n", pid);
+            return -1;
+        }
+    }
+
+
 
 int main(int argc,char * argv[]){
 
@@ -63,7 +100,7 @@ int main(int argc,char * argv[]){
 
     close(fd);
     if(status == 0){
-        // faz aqui o fork e eec no filho
+        exe(argv[k]);
     }
     else if (status == 1){
         bounce();
