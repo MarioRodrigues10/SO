@@ -8,3 +8,5 @@ typedef struct{
     char* program; //program to execute
     time_t time; //timestamp
 } program;
+
+typedef int file_d; // file descriptor

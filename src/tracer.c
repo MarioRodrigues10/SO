@@ -68,9 +68,7 @@ int exe(char comando[]){
 
 int main(int argc,char * argv[]){
 
-    int fd = open("main_fifo",O_WRONLY);
-
-    printf("depois open main_fifo\n");
+    int fd = open("tmp/main_fifo",O_WRONLY);
 
     char buffer[4096];
 
@@ -82,18 +80,26 @@ int main(int argc,char * argv[]){
         k = 2;
     }
     int status;
-    if(strcmp(argv[1] , "execute") == 0){
+
+
+    if(strcmp(argv[0] , "execute")){
+        write(fd,argv[0],strlen(argv[0]));
         status = 0;
-    } else if(strcmp(argv[1], "status") == 0){
+    } 
+    else if(strcmp(argv[0], "status")){
         status = 1;
-    } else{
+    } 
+    else{
         printf("Unknown command");
         close(fd);
         return -1;
     }
+    printf("antes do exe\n");
+
     sprintf(buffer, "#%d#%d#%d#%ld#",getpid(), 0, status, time(NULL)); // pid, running, status, time
     strcat(buffer, argv[k]);
     strcat(buffer,"#");
+    printf("%s \n",buffer);
     write(fd,buffer,strlen(buffer)); //sent all the info
 
     printf("depois main_fifo\n");

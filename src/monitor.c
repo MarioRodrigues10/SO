@@ -1,27 +1,20 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <fcntl.h>
-#include <limits.h>
-#include <string.h>
-#include <time.h>
-#include <sys/wait.h>
-#include "lib.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
-void cut(char new[], char string[], int size){
-    for (int l = 0;l<size;l++){
-        new[l] = string[l];  
-        new[l+1] = '\0';                  
-    }
-}
+
+#include "lib.h"
 
 //criar um fifo com o pid do cliente e comunicar de volta
 int bounce(program tracer){
     char fifo[] = "fifo_";
     char pid[4096];
-    char buffer[4096];
     sprintf(pid,"%d",tracer.pid);
     strcat(fifo,pid);
 
@@ -33,77 +26,98 @@ int bounce(program tracer){
     return 0;
 }
 
+/*
+    * Function:  parse_string 
+    * --------------------
+    *  parses a string into an array of strings
+    * 
+    *  string: string to be parsed
+    * 
+    *  returns: program struct with the parsed data
+*/
+program parse_string(char* string){
+    char* token = strtok(string, "#");
+    char** strings = NULL;
+    int i=0, num_strings = 1;
+    while(token != NULL){
+        strings = (char**) realloc(strings, num_strings * sizeof(char*));
+        strings[i] = token;
+        token = strtok(NULL, "#");
+        i++, num_strings++;
+    }
+    program tracer;
+    tracer.pid = atoi(strings[0]);
+    tracer.running = atoi(strings[1]);
+    tracer.status = atoi(strings[2]);
+    tracer.time = atoi(strings[3]);
+    tracer.program = strings[4];
+    
+    return tracer;
+}
+
+char** parse(char* string){
+    char* token = strtok(string, " ");
+    char** strings = NULL;
+    int i=0, num_strings = 1;
+    while(token != NULL){
+        strings = (char**) realloc(strings, num_strings * sizeof(char*));
+        strings[i] = token;
+        token = strtok(NULL, " ");
+        i++, num_strings++;
+    }
+    return strings;
+}
+
+
+pid_t execOperation(char* file, char* operation, char* second_operator) {
+    pid_t pid;
+    if (!(pid = fork ())){
+        if (second_operator != NULL) execlp(operation, operation, second_operator, file, NULL);
+        else execlp(operation, operation, file, NULL);
+        exit(EXIT_SUCCESS);
+    }
+    return pid;
+}
+
+
 int main(int argc,char * argv[]){
 
-    char buffer[4096];
-    int read_bytes = 1;
+    
+    int read_bytes = 1; 
 
-    int res = mkfifo("main_fifo",0666);
-    if(res==-1){
-        char error[] = "Error creating the main fifo\n";
-        write(1, error, strlen(error));
-    }
-    write(1, "main fifo created\n", strlen("main fifo created\n"));
+    int res = mkfifo("tmp/main_fifo",0666);
+    char buffer2[4096];
+    memset(buffer2, 0, 4096);
+    if(res==-1) write(1, "Error creating the main fifo", strlen("Error creating the main fifo\n")); 
+    else{
+        write(1, "Main fifo created\n", strlen("Main fifo created\n"));
+        file_d input = open("tmp/main_fifo",O_RDONLY);
+        file_d nullv = open("tmp/main_fifo",O_WRONLY);
+        while(read_bytes > 0){
 
-    int fd = open("main_fifo",O_RDONLY);
-    int nullv = open("main_fifo",O_WRONLY);
-    while(read_bytes>0){
-        read_bytes=read(fd,buffer,4096);
-        char temp[strlen(buffer)-6];
-        program tracer;
-        int k = 0;
-        int j = 0;
-        //client info to struct
-        for (int i =0;i<strlen(buffer) && k != 6;i++){
-            if (buffer[i] == '#'){
-                if (k ==1){
-                    //pid
-                    char pid[j];
-                    cut(pid,temp,j);
-                    tracer.pid = atoi(pid);
-                } if (k ==2){
-                    //run
-                    char run[j];
-                    cut(run,temp,j);
-                    tracer.running = atoi(run);
-                } if (k== 3){
-                    //status
-                    char stat[j];
-                    cut(stat,temp,j);
-                    tracer.status = atoi(stat);
-                } if (k==4){
-                    //time
-                    char time[j];
-                    cut(time,temp,j);
-                    tracer.time = atoi(time);
-                } if (k == 5){
-                    char args[j];
-                    cut(args,temp,j);
-                    tracer.program=args;
-                }
-                k++;
-                for(int l =0;l<j;l++){
-                    temp[l] = ' ';
-                }
-                j = 0;
-            } else{
-                temp[j] = buffer[i];
-                j++;
+            read_bytes = read(input,buffer2,4096);
+            printf("buffer: %s\n", buffer2);
+            program tracer = parse_string(buffer2);
+            char linha[100] = "Running PID: ", mypid[6];
+
+            sprintf(mypid, "%d", tracer.pid);
+            strcat(linha, mypid);
+            strcat(linha, "\n");
+            write(1 ,linha, strlen(linha));
+
+            char** strings = parse(tracer.program);
+            if (tracer.status == 0){
+                execOperation(strings[0], strings[1], strings[2]);
+                bounce(tracer);
             }
         }
-        // if status = 0, guardar status else dar status
-        if (tracer.status == 0){
-
-        } else if (tracer.status == 1){
-            int rbounce = bounce(tracer);
-        }
+        printf("after while");     
+        close(input);
     }
-    printf("after while");     
-    close(fd);
-
-
     
-    unlink("main_fifo");
+    unlink("tmp/main_fifo");
 
     return 0;
 }
+
+
