@@ -66,7 +66,7 @@ int exe(char comando[]){
 
 
 
-int main(int argc,char * argv[]){
+int main(int argc,char* argv[]){
 
     int fd = open("tmp/main_fifo",O_WRONLY);
 
@@ -81,9 +81,8 @@ int main(int argc,char * argv[]){
     }
     int status;
 
-
+    
     if(strcmp(argv[0] , "execute")){
-        write(fd,argv[0],strlen(argv[0]));
         status = 0;
     } 
     else if(strcmp(argv[0], "status")){
