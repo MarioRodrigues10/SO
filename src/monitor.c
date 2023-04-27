@@ -13,7 +13,7 @@
 
 //criar um fifo com o pid do cliente e comunicar de volta
 int bounce(program tracer){
-    char fifo[] = "fifo_";
+    char fifo[] = "tmp/fifo_";
     char pid[4096];
     sprintf(pid,"%d",tracer.pid);
     strcat(fifo,pid);
@@ -98,18 +98,19 @@ int main(int argc,char * argv[]){
             read_bytes = read(input,buffer2,4096);
             printf("buffer: %s\n", buffer2);
             program tracer = parse_string(buffer2);
-            char linha[100] = "Running PID: ", mypid[6];
-
-            sprintf(mypid, "%d", tracer.pid);
-            strcat(linha, mypid);
-            strcat(linha, "\n");
-            write(1 ,linha, strlen(linha));
-
-            char** strings = parse(tracer.program);
-            if (tracer.status == 0){
-                execOperation(strings[0], strings[1], strings[2]);
-                bounce(tracer);
+            
+            char filename[4096];
+            int len = sprintf(filename, "PIDS/PID-%d.txt", tracer.pid);
+            FILE *file = fopen(filename, "a");
+            if (file == NULL) {
+                write(1, "Error opening file!\n", strlen("Error opening file!\n"));
+                return 1;
             }
+            char buffer3[4096];
+            len = sprintf(buffer3, "PID-%d %f %s\n", tracer.pid, tracer.time, tracer.program);
+            fwrite(buffer3, sizeof(char), len, file);
+            fclose(file);
+            
         }
         printf("after while");     
         close(input);

@@ -6,110 +6,151 @@
 #include <string.h>
 #include "lib.h"
 #include <sys/wait.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
-int bounce(){
-    char fifo[] = "fifo_";
+int bounce()
+{
+    char fifo[] = "tmp/fifo_";
     char pid[4096];
 
-    sprintf(pid,"%d",getpid());
-    strcat(fifo,pid);
+    sprintf(pid, "%d", getpid());
+    strcat(fifo, pid);
 
-    int res = mkfifo(fifo,0666);
-    if(res == -1){
+    int res = mkfifo(fifo, 0666);
+    if (res == -1)
+    {
         perror("error creating bounce fifo");
     }
     int read_bytes;
-    char buffer[4096];    
-    int fstatus = open(fifo,O_RDONLY);
+    char buffer[4096];
+    int fstatus = open(fifo, O_RDONLY);
 
-    while((read_bytes=read(fstatus,buffer,4096))>0){
-        write(1,buffer,read_bytes);
+    while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
+    {
+        printf("read %d bytes", read_bytes);
+        write(1, buffer, read_bytes);
     }
     close(fstatus);
     unlink(fifo);
     return 0;
 }
 
-
-int exe(char comando[]){
-        int i = 0;
-        char *string;
-        char *exec_args[20];
-        string = strsep(&comando, " ");
-        while(string!=NULL){
-            exec_args[i]=string;
-            string=strsep(&comando," ");
-            i++;
-        }
-
-        exec_args[i]=NULL;
-
-        int exect_ret;
-        int status;
-
-        if(fork()==0){
-            exect_ret = execvp(exec_args[0],exec_args);
-
-            perror("reached return");
-
-            _exit(exect_ret);
-        }
-
-        pid_t pid = wait(&status);
-        if(WIFEXITED(status)){
-            return WEXITSTATUS(status);
-        }else{
-            printf("filho %d deu rip\n", pid);
-            return -1;
-        }
+/*
+ * Function:  parse_string
+ * --------------------
+ *  parses a string into an array of strings
+ *
+ *  string: string to be parsed
+ *
+ *  returns: program struct with the parsed data
+ */
+program parse_string(char *string)
+{
+    char *token = strtok(string, "#");
+    char **strings = NULL;
+    int i = 0, num_strings = 1;
+    while (token != NULL)
+    {
+        strings = (char **)realloc(strings, num_strings * sizeof(char *));
+        strings[i] = token;
+        token = strtok(NULL, "#");
+        i++, num_strings++;
     }
+    program tracer;
+    tracer.pid = atoi(strings[0]);
+    tracer.running = atoi(strings[1]);
+    tracer.status = atoi(strings[2]);
+    tracer.time = atoi(strings[3]);
+    tracer.program = strings[4];
 
+    return tracer;
+}
 
-
-int main(int argc,char* argv[]){
-
-    int fd = open("tmp/main_fifo",O_WRONLY);
-
-    char buffer[4096];
-
-    int k = 0;
-
-    if(argv[2][0] == '-'){
-        k = 3;
-    }else{
-        k = 2;
+char **parse(char *string)
+{
+    char *token = strtok(string, " ");
+    char **strings = NULL;
+    int i = 0, num_strings = 1;
+    while (token != NULL)
+    {
+        strings = (char **)realloc(strings, num_strings * sizeof(char *));
+        strings[i] = token;
+        token = strtok(NULL, " ");
+        i++, num_strings++;
     }
-    int status;
+    return strings;
+}
 
-    
-    if(strcmp(argv[0] , "execute")){
-        status = 0;
-    } 
-    else if(strcmp(argv[0], "status")){
+struct timeval execOperation(char *file, char *operation, char *second_operator)
+{
+    pid_t pid;
+    if (!(pid = fork()))
+    {
+        if (second_operator != NULL)
+            execlp(operation, operation, second_operator, file, NULL);
+        else
+            execlp(operation, operation, file, NULL);
+        exit(EXIT_SUCCESS);
+    }
+    struct timeval stop;
+    gettimeofday(&stop, NULL);
+    return stop;
+}
+
+int main(int argc, char *argv[])
+{
+
+    int fd = open("tmp/main_fifo", O_WRONLY);
+
+
+
+    int k = 0, status;
+
+    if (argv[2][0] == '-') k = 3;
+    else k = 2;
+
+
+    if (strcmp(argv[0], "execute")) status = 0;
+    else if (strcmp(argv[0], "status"))
+    {
         status = 1;
-    } 
-    else{
-        printf("Unknown command");
+        bounce();
+        return 0;
+    }
+    else
+    {
+        write(1, "Invalid command!\n", strlen("Invalid command!\n"));
         close(fd);
         return -1;
     }
-    printf("antes do exe\n");
 
-    sprintf(buffer, "#%d#%d#%d#%ld#",getpid(), 0, status, time(NULL)); // pid, running, status, time
-    strcat(buffer, argv[k]);
-    strcat(buffer,"#");
-    printf("%s \n",buffer);
-    write(fd,buffer,strlen(buffer)); //sent all the info
+    struct timeval start;
+    gettimeofday(&start, NULL);
 
-    printf("depois main_fifo\n");
+    program tracer;
+    tracer.pid = getpid();
+    tracer.running = 0;
+    tracer.status = status;
+    tracer.program = argv[k];
 
+    char linha[100];
+    int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+    write(1, linha, tam);
+
+    char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
+    strcpy(input_line, argv[k]); 
+
+    char **strings = parse(tracer.program);
+    struct timeval stop = execOperation(strings[0], strings[1], strings[2]);
+    double time = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec - start.tv_usec) / 1000.0;
+
+    tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%f#%s#", getpid(), 0, status, time, input_line);
+    write(fd, linha, tam);
     close(fd);
-    if(status == 0){
-        exe(argv[k]);
-    }
-    else if (status == 1){
-        bounce();
-    }
+
+    tam = sprintf(linha, "Ended in %f ms!\n", time);
+    write(1, linha, tam);
 
     return 0;
 }
