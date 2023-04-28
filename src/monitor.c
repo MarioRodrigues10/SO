@@ -7,24 +7,8 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-
-
 #include "lib.h"
 
-//criar um fifo com o pid do cliente e comunicar de volta
-int bounce(program tracer){
-    char fifo[] = "tmp/fifo_";
-    char pid[4096];
-    sprintf(pid,"%d",tracer.pid);
-    strcat(fifo,pid);
-
-    int fd = open(fifo,O_WRONLY);
-
-    write(fd,"status bounce",strlen("status bounce"));
-    close(fd);
-    
-    return 0;
-}
 
 /*
     * Function:  parse_string 
@@ -55,31 +39,6 @@ program parse_string(char* string){
     return tracer;
 }
 
-char** parse(char* string){
-    char* token = strtok(string, " ");
-    char** strings = NULL;
-    int i=0, num_strings = 1;
-    while(token != NULL){
-        strings = (char**) realloc(strings, num_strings * sizeof(char*));
-        strings[i] = token;
-        token = strtok(NULL, " ");
-        i++, num_strings++;
-    }
-    return strings;
-}
-
-
-pid_t execOperation(char* file, char* operation, char* second_operator) {
-    pid_t pid;
-    if (!(pid = fork ())){
-        if (second_operator != NULL) execlp(operation, operation, second_operator, file, NULL);
-        else execlp(operation, operation, file, NULL);
-        exit(EXIT_SUCCESS);
-    }
-    return pid;
-}
-
-
 int main(int argc,char * argv[]){
 
     
@@ -100,7 +59,7 @@ int main(int argc,char * argv[]){
             program tracer = parse_string(buffer2);
             
             char filename[4096];
-            int len = sprintf(filename, "PIDS/PID-%d.txt", tracer.pid);
+            int len = sprintf(filename, "PIDS/PID-%d", tracer.pid);
             FILE *file = fopen(filename, "a");
             if (file == NULL) {
                 write(1, "Error opening file!\n", strlen("Error opening file!\n"));
