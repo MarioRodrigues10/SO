@@ -48,52 +48,60 @@ int main(int argc, char *argv[])
 
     if (argv[2][0] == '-') k = 3;
     else k = 2;
+    
 
-
-    if (strcmp(argv[0], "execute")) status = 0;
-    else if (strcmp(argv[0], "status"))
+    if (strcmp(argv[2], "status") == 0)
     {
-        status = 1;
+        status = 2;
         //bounce();
         return 0;
     }
-    else
+    else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
+    {   
+
+        status = 0;
+        struct timeval start;
+        gettimeofday(&start, NULL);
+
+        program tracer;
+        tracer.pid = getpid();
+        tracer.running = 0;
+        tracer.status = status;
+        tracer.program = argv[k];
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+        write(1, linha, tam);
+
+        char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
+        strcpy(input_line, argv[k]); 
+
+        char **strings = parse(tracer.program);
+        int tamanho = 0; while (strings[tamanho] != NULL) tamanho++;
+        
+        struct timeval stop;
+        if (tamanho > 1) stop = execOperation(strings[2], strings[0], strings[1]);
+        else stop = execOperation(strings[1], strings[0], NULL);
+        double time = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec - start.tv_usec) / 1000.0;
+
+        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%f#%s#", getpid(), 0, status, time, input_line);
+        write(fd, linha, tam);
+        close(fd);
+
+        tam = sprintf(linha, "Ended in %f ms!\n", time);
+        write(1, linha, tam);
+
+        return 0;
+    }
+    else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
+        printf("Entrei abc\n");
+        return 0;
+    }
+    else {
         write(1, "Invalid command!\n", strlen("Invalid command!\n"));
         close(fd);
         return -1;
-    }
-
-    struct timeval start;
-    gettimeofday(&start, NULL);
-
-    program tracer;
-    tracer.pid = getpid();
-    tracer.running = 0;
-    tracer.status = status;
-    tracer.program = argv[k];
-
-    char linha[100];
-    int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
-    write(1, linha, tam);
-
-    char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
-    strcpy(input_line, argv[k]); 
-
-    char **strings = parse(tracer.program);
-    int tamanho = 0; while (strings[tamanho] != NULL) tamanho++;
     
-    struct timeval stop;
-    if (tamanho > 1) stop = execOperation(strings[2], strings[0], strings[1]);
-    else stop = execOperation(strings[1], strings[0], NULL);
-    double time = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec - start.tv_usec) / 1000.0;
-
-    tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%f#%s#", getpid(), 0, status, time, input_line);
-    write(fd, linha, tam);
-    close(fd);
-
-    tam = sprintf(linha, "Ended in %f ms!\n", time);
-    write(1, linha, tam);
-
-    return 0;
+    }
 }
