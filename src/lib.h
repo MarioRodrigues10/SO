@@ -1,5 +1,8 @@
 #include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <stdio.h>
 
 typedef struct{
     int running; // 0 for running, 1 for done
@@ -10,3 +13,8 @@ typedef struct{
 } program;
 
 typedef int file_d; // file descriptor
+
+
+program parse_string(char* string);
+char **parse(char *string);
+struct timeval execOperation(char *file, char *operation, char *second_operator);
