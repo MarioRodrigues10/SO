@@ -34,8 +34,9 @@ program parse_string(char *string)
     tracer.pid = atoi(strings[0]);
     tracer.running = atoi(strings[1]);
     tracer.status = atoi(strings[2]);
-    tracer.time = atoi(strings[3]);
-    tracer.program = strings[4];
+    tracer.sec = atol(strings[3]);
+    tracer.ms = atol(strings[4]);
+    tracer.program = strings[5];
 
     return tracer;
 }
@@ -53,24 +54,5 @@ char **parse(char *string)
         i++, num_strings++;
     }
     return strings;
-}
-
-struct timeval execOperation(char *file, char *operation, char *second_operator)
-{
-    pid_t pid;
-    if (!(pid = fork()))
-    {    
-        if (second_operator != NULL)
-          execlp(operation, operation, second_operator, file, NULL);
-        else
-            execlp(operation, operation, file, NULL);
-        exit(EXIT_SUCCESS);
-    }
-    int j;
-    wait(&j);
-    write(1, "\n", strlen("\n"));
-    struct timeval stop;
-    gettimeofday(&stop, NULL);
-    return stop;
 }
 

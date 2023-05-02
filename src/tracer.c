@@ -9,90 +9,116 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-// int bounce()
-// {
-//     char fifo[] = "tmp/fifo_";
-//     char pid[4096];
+int bounce()
+{
+    char fifo[] = "tmp/fifo_";
+    char pid[4096];
 
-//     sprintf(pid, "%d", getpid());
-//     strcat(fifo, pid);
+    sprintf(pid, "%d", getpid());
+    strcat(fifo, pid);
 
-//     int res = mkfifo(fifo, 0666);
-//     if (res == -1)
-//     {
-//         perror("error creating bounce fifo");
-//     }
-//     int read_bytes;
-//     char buffer[4096];
-//     int fstatus = open(fifo, O_RDONLY);
+    int res = mkfifo(fifo, 0666);
+    if (res == -1)
+    {
+     perror("error creating bounce fifo");
+    }
+    int read_bytes;
+    char buffer[4096];
+    int fstatus = open(fifo, O_RDONLY);
 
-//     while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
-//     {
-//         printf("read %d bytes", read_bytes);
-//         write(1, buffer, read_bytes);
-//     }
-//     close(fstatus);
-//     unlink(fifo);
-//     return 0;
-// }
+    while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
+    {
+     printf("read %d bytes", read_bytes);
+     write(1, buffer, read_bytes);
+    }
+    close(fstatus);
+    unlink(fifo);
+    return 0;
+}
+
+int mysystem(char in[]){
+    char *comando;
+    comando =strdup(in);
+    int i = 0;
+    char *string;
+    char *exec_args[20];
+    string = strsep(&comando, " ");
+    while(string!=NULL){
+        exec_args[i]=string;
+        string=strsep(&comando," ");
+        i++;
+    }
+
+    exec_args[i]=NULL;
+
+    int exect_ret;
+    int status;
+
+    if(fork()==0){
+        exect_ret = execvp(exec_args[0],exec_args);
+
+        perror("reached return");
+
+        _exit(exect_ret);
+    }
+
+    pid_t pid = wait(&status);
+    if(WIFEXITED(status)){
+        return WEXITSTATUS(status);
+    }else{
+        printf("filho %d deu rip\n", pid);
+        return -1;
+    }
+    return 0;
+}
 
 
 int main(int argc, char *argv[])
 {
 
     int fd = open("tmp/main_fifo", O_WRONLY);
-
-
-
-    int k = 0, status;
-
-    if (argv[2][0] == '-') k = 3;
-    else k = 2;
-    
-
-    if (strcmp(argv[2], "status") == 0)
+    int status;
+    // status
+    if (strcmp(argv[1], "status") == 0)
     {
-        status = 2;
-        //bounce();
+        status = 1;
+        bounce();
         return 0;
-    }
+    } //normal exec
     else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
     {   
-
-        status = 0;
-        struct timeval start;
-        gettimeofday(&start, NULL);
-
         program tracer;
         tracer.pid = getpid();
-        tracer.running = 0;
-        tracer.status = status;
-        tracer.program = argv[k];
+        tracer.program = argv[3];
 
         char linha[100];
         int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
         write(1, linha, tam);
 
-        char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
-        strcpy(input_line, argv[k]); 
-
-        char **strings = parse(tracer.program);
-        int tamanho = 0; while (strings[tamanho] != NULL) tamanho++;
-        
-        struct timeval stop;
-        if (tamanho > 1) stop = execOperation(strings[2], strings[0], strings[1]);
-        else stop = execOperation(strings[1], strings[0], NULL);
-        double time = (stop.tv_sec - start.tv_sec) * 1000 + (stop.tv_usec - start.tv_usec) / 1000.0;
-
-        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%f#%s#", getpid(), 0, status, time, input_line);
+        struct timeval time;
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 0, 0, tracer.sec, tracer.ms ,tracer.program);
         write(fd, linha, tam);
+
+        mysystem(tracer.program);
+
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 1, 0, tracer.sec, tracer.ms ,tracer.program);
+        printf("%s\n",linha);
+        fflush(stdout);
+        write(fd, linha, tam);
+
         close(fd);
 
-        tam = sprintf(linha, "Ended in %f ms!\n", time);
+        tam = sprintf(linha, "Ended!\n");
         write(1, linha, tam);
 
         return 0;
-    }
+    } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
         printf("Entrei abc\n");

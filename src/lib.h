@@ -9,7 +9,8 @@ typedef struct{
     int status; // 0 for client exec, 1 for status request
     pid_t pid; // process pid
     char* program; //program to execute
-    double time; //timestamp
+    long sec; //sec
+    long ms; // ms sem sec
 } program;
 
 typedef int file_d; // file descriptor
