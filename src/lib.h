@@ -18,4 +18,4 @@ typedef int file_d; // file descriptor
 
 program parse_string(char* string);
 char **parse(char *string);
-struct timeval execOperation(char *file, char *operation, char *second_operator);
+void removeSubstring(char *s, const char * toremove);

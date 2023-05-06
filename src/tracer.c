@@ -9,8 +9,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-int bounce()
-{
+int bounce(){
     char fifo[] = "tmp/fifo_";
     char pid[4096];
 
@@ -28,7 +27,6 @@ int bounce()
 
     while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
     {
-     printf("read %d bytes", read_bytes);
      write(1, buffer, read_bytes);
     }
     close(fstatus);
@@ -81,9 +79,16 @@ int main(int argc, char *argv[])
     // status
     if (strcmp(argv[1], "status") == 0)
     {
-        status = 1;
+        program tracer;
+        struct timeval time;
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", getpid(), 0, 1, tracer.sec, tracer.ms, "status");
+        write(fd, linha, tam);
         bounce();
-        return 0;
     } //normal exec
     else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
     {   
@@ -108,21 +113,16 @@ int main(int argc, char *argv[])
         tracer.ms = time.tv_usec;
         tracer.sec = time.tv_sec;
         tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 1, 0, tracer.sec, tracer.ms ,tracer.program);
-        printf("%s\n",linha);
-        fflush(stdout);
         write(fd, linha, tam);
 
         close(fd);
 
-        tam = sprintf(linha, "Ended!\n");
-        write(1, linha, tam);
+        bounce();
 
-        return 0;
     } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
         printf("Entrei abc\n");
-        return 0;
     }
     else {
         write(1, "Invalid command!\n", strlen("Invalid command!\n"));
@@ -130,4 +130,5 @@ int main(int argc, char *argv[])
         return -1;
     
     }
+    return 0;
 }
