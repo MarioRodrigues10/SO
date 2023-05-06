@@ -18,10 +18,9 @@ int bounce(){
 
     int read_bytes;
     char buffer[4096];
-    int fstatus = -1;
 
     int res = mkfifo(fifo, 0666);
-    fstatus = open(fifo, O_RDONLY);
+    int fstatus = open(fifo, O_RDONLY);
     
     while ((read_bytes = read(fstatus, buffer, 4096)) > 0){
         write(1, buffer, read_bytes);
