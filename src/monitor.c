@@ -15,7 +15,8 @@ int bounce(pid_t progpid, char * status, int len){
 
     sprintf(pid, "%d", progpid);
     strcat(fifo, pid);
-    int fd = open(fifo, O_WRONLY);
+    int fd = -1;
+    while((fd = open(fifo, O_WRONLY)) == -1);
 
     write(fd, status, len);
 
@@ -30,10 +31,14 @@ int main(int argc, char *argv[])
     int res = mkfifo("tmp/main_fifo", 0666);
     char buffer2[4096];
     memset(buffer2, 0, 4096);
-    if (res == -1)
+    int res2 = 0;
+    if (res == -1){
+        unlink("tmp/main_fifo");
+        res2 = mkfifo("tmp/main_fifo", 0666);
+    } if (res2 == -1){
         write(1, "Error creating the main fifo", strlen("Error creating the main fifo\n"));
-    else
-    {
+
+    } else{
         write(1, "Main fifo created\n", strlen("Main fifo created\n"));
         file_d input = open("tmp/main_fifo", O_RDONLY);
         file_d nullv = open("tmp/main_fifo", O_WRONLY);
@@ -115,14 +120,14 @@ int main(int argc, char *argv[])
                     close(fdr);
                     close(fd);
 
-                    len = sprintf(filename, "PIDS/PID-%d", tracer.pid);
+                    len = sprintf(filename, "%s/%d", argv[1], tracer.pid);
                     FILE *file = fopen(filename, "a");
                     if (file == NULL)
                     {
                         write(1, "Error opening file!\n", strlen("Error opening file!\n"));
                         return -1;
                     }
-                    len = sprintf(buffer3, "%d %ld %s\n", tracer.pid, ms, tracer.program);
+                    len = sprintf(buffer3, "%d %ld ms %s\n",tracer.pid, ms, tracer.program);
                     fwrite(buffer3, sizeof(char), len, file);
                     fclose(file);
 

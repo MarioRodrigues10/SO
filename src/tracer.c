@@ -16,19 +16,17 @@ int bounce(){
     sprintf(pid, "%d", getpid());
     strcat(fifo, pid);
 
-    int res = mkfifo(fifo, 0666);
-    if (res == -1)
-    {
-     perror("error creating bounce fifo");
-    }
     int read_bytes;
     char buffer[4096];
-    int fstatus = open(fifo, O_RDONLY);
+    int fstatus = -1;
 
-    while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
-    {
-     write(1, buffer, read_bytes);
+    int res = mkfifo(fifo, 0666);
+    fstatus = open(fifo, O_RDONLY);
+    
+    while ((read_bytes = read(fstatus, buffer, 4096)) > 0){
+        write(1, buffer, read_bytes);
     }
+
     close(fstatus);
     unlink(fifo);
     return 0;
@@ -64,7 +62,7 @@ int mysystem(char in[]){
     if(WIFEXITED(status)){
         return WEXITSTATUS(status);
     }else{
-        printf("filho %d deu rip\n", pid);
+        printf("son: %d died\n", pid);
         return -1;
     }
     return 0;
@@ -97,7 +95,7 @@ int main(int argc, char *argv[])
         tracer.program = argv[3];
 
         char linha[100];
-        int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+        int tam = snprintf(linha, sizeof(linha), "Running PID %d\n", tracer.pid);
         write(1, linha, tam);
 
         struct timeval time;
@@ -118,6 +116,7 @@ int main(int argc, char *argv[])
         close(fd);
 
         bounce();
+        
 
     } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
