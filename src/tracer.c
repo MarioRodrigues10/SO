@@ -86,7 +86,21 @@ int main(int argc, char *argv[])
         int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", getpid(), 0, 1, tracer.sec, tracer.ms, "status");
         write(fd, linha, tam);
         bounce();
-    } //normal exec
+    }
+    else if (strcmp(argv[1], "stats-time") == 0)
+    {
+        program tracer;
+        struct timeval time;
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%ld#%s#", getpid(), 0, 2, 0, tracer.ms, "stats-time");
+        write(fd, linha, tam);
+        bounce();
+    }
+ 
     else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
     {   
         program tracer;

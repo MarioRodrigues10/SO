@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
 #include "lib.h"
 
 int bounce(pid_t progpid, char * status, int len){   
@@ -145,7 +146,48 @@ int main(int argc, char *argv[])
                     fclose(file);
 
                 }
-            } else{ //ve o ficheiro temp aka status
+            } 
+            else if (tracer.status == 2) {
+
+        int total_time = 0;
+        DIR *dir = opendir(argv[1]);
+        if (dir == NULL) {
+            perror("Erro ao abrir o diretório");
+            exit(1);
+        }
+
+        // Lê cada arquivo de PID
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue; // ignora arquivos ocultos
+
+            // Constrói o caminho completo do arquivo
+            char filepath[PATH_MAX];
+            sprintf(filepath, "%s/%s", argv[1],entry->d_name);
+
+            // Abre o arquivos  
+            int fd = open(filepath, O_RDONLY);
+            if (fd == -1) {
+                perror("Erro ao abrir o arquivo");
+                exit(1);
+            }
+
+            // Lê o conteúdo do arquivo e soma ao tempo total
+            char buf[4096];
+            int n = read(fd, buf, sizeof(buf));
+            buf[n] = '\0';
+            char *token = strtok(buf, " ");
+            token = strtok(NULL, " "); // Pula o primeiro campo (pid)
+            total_time += atoi(token);
+
+            close(fd);
+        }
+        char statstime[100];
+        closedir(dir);
+        int len = sprintf(statstime, "Ended in %d ms\n", total_time);
+        bounce(tracer.pid, statstime, len);
+    }
+            else{ //ve o ficheiro temp aka status
                 char tmpbuffer[4096];
                 
                 int fd = open("tmp/running", O_RDONLY);
