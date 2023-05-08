@@ -101,8 +101,35 @@ int main(int argc, char *argv[])
         int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 2, 0, 0, argv[2]);
         write(fd, linha, tam);
         bounce();
+    }else if (strcmp(argv[1], "stats-command") == 0 && argv[2])
+    {
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 3, 0, 0, argv[2]);
+        write(fd, linha, tam);
+        bounce();
+    }else if (strcmp(argv[1], "stats-uniq") == 0 && argv[2])
+    {
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 4, 0, 0, argv[2]);
+        write(fd, linha, tam);
+        bounce();
     }
- 
     else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
     {   
         program tracer;
