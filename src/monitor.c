@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include "lib.h"
+#include <stdbool.h>
 
 int bounce(pid_t progpid, char * status, int len){   
     char fifo[] = "tmp/fifo_";
@@ -146,47 +147,65 @@ int main(int argc, char *argv[])
                     fclose(file);
 
                 }
-            } 
-            else if (tracer.status == 2) {
+            } else if (tracer.status == 2) {
 
-        int total_time = 0;
-        DIR *dir = opendir(argv[1]);
-        if (dir == NULL) {
-            perror("Erro ao abrir o diretório");
-            exit(1);
-        }
+                int total_time = 0;
+                DIR *dir = opendir(argv[1]);
+                if (dir == NULL) {
+                    perror("Erro ao abrir o diretório");
+                    exit(1);
+                }
 
-        // Lê cada arquivo de PID
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] == '.') continue; // ignora arquivos ocultos
+                char *comando;
+                comando =strdup(tracer.program);
+                int i = 0;
+                char *string;
+                char *exec_args[20];
+                string = strsep(&comando, " ");
+                while(string!=NULL){
+                    exec_args[i]=string;
+                    string=strsep(&comando," ");
+                    i++;
+                }
 
-            // Constrói o caminho completo do arquivo
-            char filepath[PATH_MAX];
-            sprintf(filepath, "%s/%s", argv[1],entry->d_name);
+                // Lê cada arquivo de PID
+                struct dirent *entry;
+                while ((entry = readdir(dir)) != NULL) {
+                    bool pid = true;
+                    //ve so o nome do file coincide com o input do tracer
+                    for(int  j= 0; j < i; j++){
+                        if (strcmp(exec_args[j], entry->d_name) == 0){
+                            pid = false;
+                        }
+                    }
+                    if (entry->d_name[0] == '.' || pid == true) continue; // ignora arquivos ocultos
 
-            // Abre o arquivos  
-            int fd = open(filepath, O_RDONLY);
-            if (fd == -1) {
-                perror("Erro ao abrir o arquivo");
-                exit(1);
+                    // Constrói o caminho completo do arquivo
+                    char filepath[PATH_MAX];
+                    sprintf(filepath, "%s/%s", argv[1],entry->d_name);
+
+                    // Abre o arquivos  
+                    int fd = open(filepath, O_RDONLY);
+                    if (fd == -1) {
+                        perror("Erro ao abrir o arquivo");
+                        exit(1);
+                    }
+
+                    // Lê o conteúdo do arquivo e soma ao tempo total
+                    char buf[4096];
+                    int n = read(fd, buf, sizeof(buf));
+                    buf[n] = '\0';
+                    char *token = strtok(buf, " ");
+                    token = strtok(NULL, " "); // Pula o primeiro campo (pid)
+                    total_time += atoi(token);
+
+                    close(fd);
+                }
+                char statstime[100];
+                closedir(dir);
+                int len = sprintf(statstime, "Total execution time is %d ms\n", total_time);
+                bounce(tracer.pid, statstime, len);
             }
-
-            // Lê o conteúdo do arquivo e soma ao tempo total
-            char buf[4096];
-            int n = read(fd, buf, sizeof(buf));
-            buf[n] = '\0';
-            char *token = strtok(buf, " ");
-            token = strtok(NULL, " "); // Pula o primeiro campo (pid)
-            total_time += atoi(token);
-
-            close(fd);
-        }
-        char statstime[100];
-        closedir(dir);
-        int len = sprintf(statstime, "Ended in %d ms\n", total_time);
-        bounce(tracer.pid, statstime, len);
-    }
             else{ //ve o ficheiro temp aka status
                 char tmpbuffer[4096];
                 

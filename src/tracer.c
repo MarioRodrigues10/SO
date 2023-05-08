@@ -87,16 +87,18 @@ int main(int argc, char *argv[])
         write(fd, linha, tam);
         bounce();
     }
-    else if (strcmp(argv[1], "stats-time") == 0)
+    else if (strcmp(argv[1], "stats-time") == 0 && argv[2])
     {
-        program tracer;
-        struct timeval time;
-        gettimeofday(&time, NULL);
-        tracer.ms = time.tv_usec;
-        tracer.sec = time.tv_sec;
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
 
         char linha[100];
-        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%ld#%s#", getpid(), 0, 2, 0, tracer.ms, "stats-time");
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 2, 0, 0, argv[2]);
         write(fd, linha, tam);
         bounce();
     }
