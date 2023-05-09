@@ -9,28 +9,23 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-int bounce()
-{
+int bounce(){
     char fifo[] = "tmp/fifo_";
     char pid[4096];
 
     sprintf(pid, "%d", getpid());
     strcat(fifo, pid);
 
-    int res = mkfifo(fifo, 0666);
-    if (res == -1)
-    {
-     perror("error creating bounce fifo");
-    }
     int read_bytes;
     char buffer[4096];
-    int fstatus = open(fifo, O_RDONLY);
 
-    while ((read_bytes = read(fstatus, buffer, 4096)) > 0)
-    {
-     printf("read %d bytes", read_bytes);
-     write(1, buffer, read_bytes);
+    int res = mkfifo(fifo, 0666);
+    int fstatus = open(fifo, O_RDONLY);
+    
+    while ((read_bytes = read(fstatus, buffer, 4096)) > 0){
+        write(1, buffer, read_bytes);
     }
+
     close(fstatus);
     unlink(fifo);
     return 0;
@@ -66,7 +61,7 @@ int mysystem(char in[]){
     if(WIFEXITED(status)){
         return WEXITSTATUS(status);
     }else{
-        printf("filho %d deu rip\n", pid);
+        printf("son: %d died\n", pid);
         return -1;
     }
     return 0;
@@ -81,10 +76,60 @@ int main(int argc, char *argv[])
     // status
     if (strcmp(argv[1], "status") == 0)
     {
-        status = 1;
+        program tracer;
+        struct timeval time;
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", getpid(), 0, 1, tracer.sec, tracer.ms, "status");
+        write(fd, linha, tam);
         bounce();
-        return 0;
-    } //normal exec
+    }
+    else if (strcmp(argv[1], "stats-time") == 0 && argv[2])
+    {
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 2, 0, 0, argv[2]);
+        write(fd, linha, tam);
+        bounce();
+    }else if (strcmp(argv[1], "stats-command") == 0 && argv[2])
+    {
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 3, 0, 0, argv[2]);
+        write(fd, linha, tam);
+        bounce();
+    }else if (strcmp(argv[1], "stats-uniq") == 0 && argv[2])
+    {
+        int k = 3;
+        char toadd[10];
+        while(argv[k]){
+            sprintf(toadd, " %s", argv[k]);
+            strcat(argv[2], toadd);
+            k++;
+        }
+
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 4, 0, 0, argv[2]);
+        write(fd, linha, tam);
+        bounce();
+    }
     else if((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-u") == 0))
     {   
         program tracer;
@@ -92,7 +137,7 @@ int main(int argc, char *argv[])
         tracer.program = argv[3];
 
         char linha[100];
-        int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+        int tam = snprintf(linha, sizeof(linha), "Running PID %d\n", tracer.pid);
         write(1, linha, tam);
 
         struct timeval time;
@@ -108,16 +153,13 @@ int main(int argc, char *argv[])
         tracer.ms = time.tv_usec;
         tracer.sec = time.tv_sec;
         tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 1, 0, tracer.sec, tracer.ms ,tracer.program);
-        printf("%s\n",linha);
-        fflush(stdout);
         write(fd, linha, tam);
 
         close(fd);
 
-        tam = sprintf(linha, "Ended!\n");
-        write(1, linha, tam);
+        bounce();
+        
 
-        return 0;
     } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
@@ -148,4 +190,5 @@ int main(int argc, char *argv[])
         return -1;
     
     }
+    return 0;
 }

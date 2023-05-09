@@ -190,3 +190,22 @@ char **parse_pipeline(char *cmd_str, int *num_args)
     *num_args = i;
     return args;
 }
+
+void removeSubstring(char *s, const char * toremove) {
+    int i, j, k;
+    int n = strlen(s);
+    int m = strlen(toremove);
+
+    for (i = 0; i < n - m + 1; i++) {
+        for (j = 0, k = i; j < m && s[k] == toremove[j]; j++, k++);
+        if (j == m) {
+            for (k = i + m; k <= n; k++) {
+                s[k - m] = s[k];
+            }
+            n -= m;
+            i--;
+        }
+    }
+}
+
+
