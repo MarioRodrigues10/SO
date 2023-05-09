@@ -19,3 +19,5 @@ typedef int file_d; // file descriptor
 program parse_string(char* string);
 char **parse(char *string);
 struct timeval execOperation(char *file, char *operation, char *second_operator);
+struct timeval pipeline(char **cmd, int num_cmds);
+char** parse_pipeline(char* cmd_str, int* num_args);

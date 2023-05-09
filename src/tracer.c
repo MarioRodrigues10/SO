@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 {
 
     int fd = open("tmp/main_fifo", O_WRONLY);
-    int status;
+    int status; int k = 0;
     // status
     if (strcmp(argv[1], "status") == 0)
     {
@@ -121,7 +121,25 @@ int main(int argc, char *argv[])
     } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
-        printf("Entrei abc\n");
+        status = 0;
+        struct timeval start;
+        gettimeofday(&start, NULL);
+
+        program tracer;
+        tracer.pid = getpid();
+        tracer.running = 0;
+        tracer.status = status;
+        tracer.program = argv[3];
+        char linha[100];
+        int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+        write(1, linha, tam);
+
+        char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
+        strcpy(input_line, argv[k]); 
+        int tamanho=0;
+        char **strings = parse_pipeline(tracer.program, &tamanho);
+        printf("Tamanho:%d\n",tamanho);
+        struct timeval stop = pipeline(strings, tamanho);
         return 0;
     }
     else {
