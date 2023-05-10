@@ -20,6 +20,9 @@ int bounce(){
     char buffer[4096];
 
     int res = mkfifo(fifo, 0666);
+    if(res == -1){
+        perror("Error creating fifo");
+    }
     int fstatus = open(fifo, O_RDONLY);
     
     while ((read_bytes = read(fstatus, buffer, 4096)) > 0){
@@ -72,7 +75,6 @@ int main(int argc, char *argv[])
 {
 
     int fd = open("tmp/main_fifo", O_WRONLY);
-    int status; int k = 0;
     // status
     if (strcmp(argv[1], "status") == 0)
     {
@@ -101,7 +103,7 @@ int main(int argc, char *argv[])
         int tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%d#%d#%s#", getpid(), 0, 2, 0, 0, argv[2]);
         write(fd, linha, tam);
         bounce();
-    }else if (strcmp(argv[1], "stats-command") == 0 && argv[2])
+    }else if (strcmp(argv[1], "stats-command") == 0 && argv[2] && argv[3])
     {
         int k = 3;
         char toadd[10];
@@ -163,26 +165,34 @@ int main(int argc, char *argv[])
     } //pipelines
     else if ((strcmp(argv[1], "execute") == 0) && (strcmp(argv[2], "-p") == 0))
     {
-        status = 0;
-        struct timeval start;
-        gettimeofday(&start, NULL);
-
         program tracer;
         tracer.pid = getpid();
-        tracer.running = 0;
-        tracer.status = status;
-        tracer.program = argv[3];
+        tracer.program = strdup(argv[3]);
+
         char linha[100];
-        int tam = snprintf(linha, sizeof(linha), "Running PID: %d\n", tracer.pid);
+        int tam = snprintf(linha, sizeof(linha), "Running PID %d\n", tracer.pid);
         write(1, linha, tam);
 
-        char *input_line = (char*) malloc(strlen(argv[k]) + 1); 
-        strcpy(input_line, argv[k]); 
-        int tamanho=0;
-        char **strings = parse_pipeline(tracer.program, &tamanho);
-        printf("Tamanho:%d\n",tamanho);
-        struct timeval stop = pipeline(strings, tamanho);
-        return 0;
+        struct timeval time;
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 0, 0, tracer.sec, tracer.ms , argv[3]);
+        write(fd, linha, tam);
+
+        char *args[100];
+        int tamanho = parse_pipeline(args, tracer.program);
+        pipeline(args, tamanho);
+        
+        gettimeofday(&time, NULL);
+        tracer.ms = time.tv_usec;
+        tracer.sec = time.tv_sec;
+        tam = snprintf(linha, sizeof(linha), "#%d#%d#%d#%ld#%ld#%s#", tracer.pid, 1, 0, tracer.sec, tracer.ms , argv[3]);
+        write(fd, linha, tam);
+
+        close(fd);
+
+        bounce();
     }
     else {
         write(1, "Invalid command!\n", strlen("Invalid command!\n"));

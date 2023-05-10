@@ -56,139 +56,97 @@ char **parse(char *string)
     return strings;
 }
 
-struct timeval execOperation(char *file, char *operation, char *second_operator)
-{
-    pid_t pid;
-    if (!(pid = fork()))
-    {
-        if (second_operator != NULL)
-            execlp(operation, operation, second_operator, file, NULL);
-        else
-            execlp(operation, operation, file, NULL);
-        exit(EXIT_SUCCESS);
+int parser(char **exec_args, char *str){
+    char *comando;
+    comando =strdup(str);
+    int i = 0;
+    char *string;
+    string = strsep(&comando, " ");
+    if(strcmp("", string) == 0){
+        string = strsep(&comando, " ");
     }
-    int j;
-    wait(&j);
-    write(1, "\n", strlen("\n"));
-    struct timeval stop;
-    gettimeofday(&stop, NULL);
-    return stop;
+    while(string!=NULL){
+        if(strcmp("", string) != 0){
+            exec_args[i]=string;
+        }
+        string=strsep(&comando," ");
+        i++;
+    }
+    return i;
 }
 
-struct timeval pipeline(char **cmd, int num_cmds)
+int pipeline(char **comandos, int nc)
 {
 
-    int pipes[num_cmds - 1][2];
-    int i, num_cmds2 = num_cmds;
-    printf("Num cmds2: %d\n", num_cmds2);
-    for (i = 0; i < num_cmds2; i++)
-    {
-        printf("I: %d\n", i);
-        printf("Cmd: %s\n", cmd[i]);
-        if (pipe(pipes[i]) == -1)
-        {
-            perror("pipe");
-            exit(EXIT_FAILURE);
+    int pipes[nc-1][2];
+
+    for(int i = 0; i<nc; i++){
+
+        char *exec_args[20];
+        for(int j = 0; j<20;j++){
+            exec_args[j] = NULL;
         }
-        pid_t pid = fork();
-        switch (pid)
-        {
-        case 0:
-            char *args = malloc(sizeof(char) * 100);
-            strcpy(args, cmd[i]);
-            char **args2 = parse(cmd[i]);
-            if (i == 0)
-            {
+        parser(exec_args, comandos[i]);
+
+        if (i==0){
+            pipe(pipes[i]);
+            if(fork() == 0){
                 close(pipes[i][0]);
-                dup2(pipes[i][1], 1);
+                dup2(pipes[i][1],1);
+                close(pipes[i][1]);
+                execvp(exec_args[0], exec_args);
+            } else{
                 close(pipes[i][1]);
             }
-            else if (i == num_cmds2 - 1)
-            {
-                close(pipes[i - 1][1]);
-                dup2(pipes[i - 1][0], 0);
-                close(pipes[i - 1][0]);
-                printf("I: %d\n", i);
+        }else if (i==nc-1){
+            if(fork() == 0){
+                dup2(pipes[i-1][0],0);
+                close(pipes[i-1][0]);
+                execvp(exec_args[0], exec_args);
+            } else{
+                close(pipes[i-1][1]);
             }
-            else
-            {
-                close(pipes[i - 1][1]);
-                dup2(pipes[i - 1][0], 0);
-                close(pipes[i - 1][0]);
-                dup2(pipes[i][1], 1);
+        }else{
+            pipe(pipes[i]);
+            if(fork() == 0){
+                close(pipes[i][0]);
+                dup2(pipes[i-1][0],0);
+                close(pipes[i][0]);
+                dup2(pipes[i][1],1);
+                close(pipes[i][1]);
+                execvp(exec_args[0], exec_args);
+            } else{
+                close(pipes[i-1][0]);
                 close(pipes[i][1]);
             }
-            printf("Args: %s\n", args2[1]);
-            execvp(args2[0], args2);
-            printf("Error: %s\n", args2[0]);
-            free(args2);
-            _exit(0);
-            break;
-        case -1:
-            perror("fork");
-            exit(EXIT_FAILURE);
-            break;
         }
     }
-
-    for (int h = 0; h < num_cmds - 1; h++)
-    {
-        close(pipes[h][0]);
-        close(pipes[h][1]);
-        int j;
-        wait(&j);
+    int w;
+    for(int i =0; i<nc;i++){
+        wait(&w); 
     }
 
-    struct timeval stop;
-    gettimeofday(&stop, NULL);
-    return stop;
+    return 0;
+
 }
 
-char **parse_pipeline(char *cmd_str, int *num_args)
+int parse_pipeline(char **args, char *cmd_str)
 {
 
-    const char *delimiters = "|";
-    const size_t max_args = 1024;
-    const size_t max_arg_len = 4096;
+    char *token;
 
-    char **args = malloc(sizeof(char *) * (max_args + 1));
-    if (!args)
-    {
-        perror("malloc");
-        exit(EXIT_FAILURE);
+    token = strtok(cmd_str, "|");
+    int i = 0;
+
+    while(token != NULL){
+
+        args[i] = token;
+
+        token = strtok(NULL, "|");
+        i++;
     }
-
-    const char *p = cmd_str;
-    size_t i = 0;
-    while (*p)
-    {
-        while (*p && strchr(delimiters, *p))
-            ++p;
-        if (!*p)
-            break;
-        args[i] = malloc(max_arg_len);
-        if (!args[i])
-        {
-            perror("malloc");
-            exit(EXIT_FAILURE);
-        }
-        size_t j = 0;
-        while (*p && !strchr(delimiters, *p))
-        {
-            if (j < max_arg_len - 1)
-                args[i][j++] = *p++;
-            else
-                ++p;
-        }
-        args[i][j] = '\0';
-        ++i;
-        if (*p == '|')
-            ++p;
-    }
-    args[i] = NULL;
-
-    *num_args = i;
-    return args;
+    
+    return i;
 }
 
 void removeSubstring(char *s, const char * toremove) {

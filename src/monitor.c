@@ -25,7 +25,7 @@ int statusparser(char **exec_args, program tracer){
     return i;
 }
 
-int bounce(pid_t progpid, char * status, int len){   
+void bounce(pid_t progpid, char * status, int len){   
     char fifo[] = "tmp/fifo_";
     char pid[4096];
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     } else{
         write(1, "Main fifo created\n", strlen("Main fifo created\n"));
         file_d input = open("tmp/main_fifo", O_RDONLY);
-        file_d nullv = open("tmp/main_fifo", O_WRONLY);
+        open("tmp/main_fifo", O_WRONLY);
         while (read_bytes > 0)
         {
             read_bytes = read(input, buffer2, 4096);
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
                     bounce(tracer.pid, status, len);
 
                     char del[100];
-                    int deltam = sprintf(del, "%d %ld %ld %s\n", before.pid, before.sec, before.ms, before.program);
+                    sprintf(del, "%d %ld %ld %s\n", before.pid, before.sec, before.ms, before.program);
 
                     removeSubstring(saved, del);
 
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
                 exit(1);
                 }
 
-                char *exec_args[20];
+                char *exec_args[100];
                 int i = statusparser(exec_args, tracer);
 
                 // Lê cada arquivo de PID
@@ -213,7 +213,60 @@ int main(int argc, char *argv[])
                 bounce(tracer.pid, statstime, len);
             }else if (tracer.status == 3) {
 
-                printf("stats-command");
+                DIR *dir = opendir(argv[1]);
+                if (dir == NULL) {
+                    perror("Erro ao abrir o diretório");
+                    exit(1);
+                }
+
+                char *exec_args[100];
+                int i = statusparser(exec_args, tracer);
+                int count = 0;
+
+                // Lê cada arquivo de PID
+                struct dirent *entry;
+                while ((entry = readdir(dir)) != NULL) {
+                    bool pid = true;
+                    //ve so o nome do file coincide com o input do tracer
+                    for(int  j= 1; j < i; j++){
+                        if (strcmp(exec_args[j], entry->d_name) == 0){
+                            pid = false;
+                        }
+                    }
+                    if (entry->d_name[0] == '.' || pid == true) continue; // ignora arquivos ocultos
+
+                    // Constrói o caminho completo do arquivo
+                    char filepath[PATH_MAX];
+                    sprintf(filepath, "%s/%s", argv[1],entry->d_name);
+
+                    // Abre o arquivos  
+                    int fd = open(filepath, O_RDONLY);
+                    if (fd == -1) {
+                        perror("Erro ao abrir o arquivo");
+                        exit(1);
+                    }
+
+                    // Lê o conteúdo do arquivo e soma ao tempo total
+                    char buff[4096];
+                    int n = read(fd, buff, sizeof(buff));
+                    buff[n] = '\0';
+                    char *token = strtok(buff, " ");
+                    token = strtok(NULL, " "); // passa o pid
+                    token = strtok(NULL, " "); // passa o milisegundos
+                    token = strtok(NULL, " "); // passa o "ms"
+                    while(token != NULL){
+                        if (strcmp(exec_args[0], token) == 0){
+                            count++;
+                        }
+                        token = strtok(NULL, " ");
+                    }
+
+                    close(fd);
+                }
+                char bounc[100];
+                closedir(dir);
+                sprintf(bounc,"%s was executed %d times\n",exec_args[0], count);
+                bounce(tracer.pid, bounc, strlen(bounc));
 
             }else if (tracer.status == 4) {
 
@@ -224,7 +277,7 @@ int main(int argc, char *argv[])
                 exit(1);
                 }
 
-                char *exec_args[20];
+                char *exec_args[100];
                 int i = statusparser(exec_args, tracer);
                 int j = 0;
 
@@ -253,34 +306,43 @@ int main(int argc, char *argv[])
 
                     // Lê o conteúdo do arquivo e soma ao tempo total
                     char buff[4096];
+                    buff[0] = '\0';
                     int n = read(fd, buff, sizeof(buff));
                     buff[n] = '\0';
                     char *token = strtok(buff, " ");
                     token = strtok(NULL, " "); // passa o pid
                     token = strtok(NULL, " "); // passa o milisegundos
                     token = strtok(NULL, " "); // passa o "ms"
-
-                    bool uniq = true;
-                    for (int m = 0; m<j;m++){
-                        if(strcmp(token, progs[m]) == 0){
-                            uniq = false;
+                    bool valid = true;
+                    while(token != NULL){
+                        bool uniq = true;
+                        for (int m = 0; m<j;m++){
+                            if(token[strlen(token)-1] == '\n'){
+                                token[strlen(token)-1] = '\0';
+                            } 
+                            if(strcmp(token, progs[m]) == 0){
+                                uniq = false;
+                            }
                         }
-                    }
-                    if (uniq){
-                        progs[j] = malloc(100 * sizeof(char));
-                        strncpy(progs[j], token, 100-1);
-                        j++;
-                        
-                    }
+                        if (uniq && valid && strcmp(token, "|") != 0){
+                            valid = false;
+                            progs[j] = malloc(100 * sizeof(char));
+                            strncpy(progs[j], token, 100-1);
+                            j++;
+                            
+                        }
 
+                        if(strcmp("|", token) == 0){
+                            valid = true; 
+                        } 
+                        token = strtok(NULL, " ");
+                    }
                     close(fd);
                 }
                 char *bounc;
                 bounc = malloc(100 * sizeof(char));
                 bounc[0] = '\0';
-                char temp[100];
                 closedir(dir);
-                int len = 0;
                 for (int m = 0; m<j;m++){
                     strcat(bounc, progs[m]);
                     strcat(bounc, "\n");
@@ -331,7 +393,7 @@ int main(int argc, char *argv[])
                             l++;
                         }
                         ms = ((tracer.sec - current.sec)*1000) + ((tracer.ms - current.ms)/1000);
-                        len += sprintf(c,"%d %s %ld ms\n",current.pid, current.program, ms);
+                        len += sprintf(c,"%d %ld ms %s\n",current.pid, ms, current.program);
                         strcat(status, c);
                         token = strtok(NULL, "\n");
                     }
