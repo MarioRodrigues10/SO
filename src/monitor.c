@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
                     close(fd);
 
                     len = sprintf(filename, "%s/%d", argv[1], tracer.pid);
+                    printf("%s\n", filename);
                     FILE *file = fopen(filename, "a");
                     if (file == NULL)
                     {
