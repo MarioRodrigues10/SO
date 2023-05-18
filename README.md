@@ -35,6 +35,6 @@ $ ./bin/tracer stats-command PID
 
 # Developed by:
 
-- [Mário Rodrigues](https://github.com/RuiL1904)
+- [Mário Rodrigues](https://github.com/MarioRodrigues10)
 - [Pedro](https://github.com/jkaxsh)
 - [João Faria](https://github.com/joaofarys200)
