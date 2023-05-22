@@ -1,5 +1,5 @@
 ## Operating Systems | Sistemas Operativos
-## Grade: */20 :star:
+## Grade: 16.1/20 :star:
 
 This project was developed during the second semester of the 2nd year.
 
